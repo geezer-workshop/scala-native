@@ -1,16 +1,16 @@
 package java.lang
 
 import scala.scalanative.native.Ptr
-import scala.scalanative.runtime.Type
+import scala.scalanative.runtime.{Info, InfoOps}
 
-final class _Class[A](val ty: Ptr[Type]) {
-  def getName(): String = (!ty).name
+final class _Class[A](val info: Ptr[Info]) {
+  def getName(): String = info.name
 
-  override def hashCode: Int = ty.cast[Long].##
+  override def hashCode: Int = info.cast[Long].##
 
   override def equals(other: Any): scala.Boolean = other match {
     case other: _Class[_] =>
-      ty == other.ty
+      info == other.info
     case _ =>
       false
   }
