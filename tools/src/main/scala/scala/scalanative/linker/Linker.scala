@@ -12,14 +12,22 @@ sealed trait Linker {
 
   /** Link the whole world under closed world assumption. */
   def link(entries: Seq[Global]): (Seq[Global], Seq[Attr.Link], Seq[Defn])
+
+  /** Dispose of linker. */
+  def close(): Unit
 }
 
 object Linker {
 
   /** Create a new linker given tools configuration. */
-  def apply(config: tools.Config): Linker = new Impl(config)
+  def apply(config: tools.Config,
+            reporter: Reporter = Reporter.empty): Linker =
+    new Impl(config, reporter)
 
-  private final class Impl(config: tools.Config) extends Linker {
+  private final class Impl(config: tools.Config, reporter: Reporter)
+      extends Linker {
+    import reporter._
+
     private def load(
         global: Global): Option[(Seq[Dep], Seq[Attr.Link], Defn)] =
       config.paths.collectFirst {
@@ -44,18 +52,22 @@ object Linker {
 
             load(workitem).fold[Unit] {
               unresolved += workitem
+              onUnresolved(workitem)
             } {
               case (deps, newlinks, defn) =>
                 resolved += workitem
                 defns += defn
                 links ++= newlinks
+                onResolved(workitem)
 
                 deps.foreach {
                   case Dep.Direct(dep) =>
                     direct.push(dep)
+                    onDirectDependency(workitem, dep)
 
-                  case cond: Dep.Conditional =>
+                  case cond @ Dep.Conditional(dep, condition) =>
                     conditional += cond
+                    onConditionalDependency(workitem, dep, condition)
                 }
             }
           }
@@ -79,15 +91,24 @@ object Linker {
         conditional = rest
       }
 
-      direct.pushAll(entries)
+      onStart()
+
+      entries.foreach { entry =>
+        direct.push(entry)
+        onEntry(entry)
+      }
+
       while (direct.nonEmpty) {
         processDirect
         processConditional
       }
 
-      config.paths.foreach(_.close)
+      onComplete()
 
       (unresolved.toSeq, links.toSeq, defns.sortBy(_.name.toString).toSeq)
     }
+
+    def close(): Unit =
+      config.paths.foreach(_.close)
   }
 }

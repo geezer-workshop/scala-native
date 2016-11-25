@@ -46,6 +46,7 @@ object Path {
         deserializer.deserialize(name)
       }
 
-    def close = directory.close()
+    def close(): Unit =
+      directory.close()
   }
 }

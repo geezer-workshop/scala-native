@@ -52,6 +52,8 @@ object VirtualDirectory {
         new LocalDirectory(file.toPath)
       case (true, false, true) =>
         new JarDirectory(file.toPath)
+      case (false, _, _) =>
+        throw new Exception(s"$file does not exist")
       case _ =>
         throw new Exception(
           s"unrecognized nir path entry: ${file.getAbsolutePath}")
